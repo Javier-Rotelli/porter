@@ -162,7 +162,80 @@ class Utnianos extends ExportController {
             1 as Bookmarked
          from :_threadsubscriptions t", $userDiscussion_Map);
 
-        
+        // Tag.
+        $tagMap = array(
+            'FullNameToName' => array('Column' => 'Name', 'Filter' => 'formatUrl')
+        );
+        $ex->exportTable('Tag', "
+                SELECT
+                    IdMateria as TagID,
+                    Nombre as FullName,
+                       COALESCE(NULLIF(Abreviatura,''), Nombre) as FullNameToName
+                FROM utnianos_materias
+                UNION SELECT 1001,'Parciales', 'Parciales'
+                UNION SELECT 1002, 'Finales', 'Finales'
+                UNION SELECT 1003, 'Trabajo practico', 'Trabajo practico'
+                UNION SELECT 1004, 'Apuntes y Guias', 'Apuntes y Guias'
+                UNION SELECT 1005, 'Libro', 'Libro'
+                UNION SELECT 1006, 'Profesores', 'Profesores'
+                UNION SELECT 1007, 'Ejercicios', 'Ejercicios'
+                UNION SELECT 1008, 'Dudas y recomendaciones', 'Dudas y recomendaciones'
+                UNION SELECT 1009, 'Consultas administrativas', 'Consultas administrativas'
+                UNION SELECT 1010, 'Otro', 'Otro'
+                UNION SELECT 1011, 'Guias CEIT', 'Guias CEIT'
+            ",$tagMap);
+
+        // TagDiscussion.
+        $ex->query("
+            create table tagsDisc
+                select * from (
+                    select
+                        tipo_aporte + 1000 as TagID,
+                        tid as DiscussionID
+                    from
+                        :_threadfields_data
+                    where tipo_aporte <> '' and tipo_aporte not like \"%\\n%\"
+                    union
+                    select
+                        materia as TagID,
+                        tid as DiscussionID
+                    from
+                        :_threadfields_data
+                    where materia <> '' and materia not like \"%\\n%\"
+                    ) as alltags");
+
+        $to = $ex->query("
+            select * from (
+                select
+                    tipo_aporte + 1000 as TagID,
+                    tid as DiscussionID
+                from
+                    :_threadfields_data
+                where tipo_aporte <> '' and tipo_aporte like \"%\\n%\"
+                union
+                select
+                    materia as TagID,
+                    tid as DiscussionID
+                from
+                    :_threadfields_data
+                where materia <> '' and materia like \"%\\n%\"
+            ) as alltags
+            ");
+         if (is_resource($to)) {
+             while ($row = $to->nextResultRow()) {
+                 $tags = explode("\n",$row['TagID']);
+                 $discussion = $row['DiscussionID'];
+                 $toIns = '';
+                 foreach ($tags as $tagID) {
+                     $toIns .= "($tagID,$discussion),";
+                 }
+                 $toIns = trim($toIns, ',');
+
+                 $ex->query("insert tagsDisc (TagID, DiscussionID) values $toIns");
+             }
+         }
+        $ex->exportTable('TagDiscussion', 'select distinct * from tagsDisc');
+        $ex->query('drop table tagsDisc');
         $ex->endExport();
     }
 
