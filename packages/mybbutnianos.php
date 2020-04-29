@@ -65,8 +65,10 @@ class Utnianos extends ExportController {
             FROM_UNIXTIME(regdate) as regdate3,
             FROM_UNIXTIME(lastactive) as DateLastActive,
             concat(password,':', salt) as Password,
+            uf.fid2 as About,
             'mybb' as HashMethod
          from :_users u
+         inner join :userfields uf on uid = ufid
          ", $user_Map);
 
         // Role.
@@ -236,6 +238,22 @@ class Utnianos extends ExportController {
          }
         $ex->exportTable('TagDiscussion', 'select distinct * from tagsDisc');
         $ex->query('drop table tagsDisc');
+
+        // Carrera del usuario
+        $ex->exportTable('UserMeta', "
+            select
+                ufid as UserID,
+                'Profile.Carrera' as Name,
+                fid5 as Value
+            from mybb_userfields
+            union
+            select
+                ufid as UserID,
+                'Profile.Sede' as Name,
+                fid6 as Value
+            from mybb_userfields"
+        );
+
         $ex->endExport();
     }
 
